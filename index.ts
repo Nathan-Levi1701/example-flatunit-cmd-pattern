@@ -92,7 +92,7 @@ class CommandStack<State extends Stringifiable> {
         commands.forEach(command => {
             console.log(`Executing command: ${command.constructor.name}`);
             console.log('State before execution:', this._state);
-            this._prevState = this._state.slice(); // Store the previous state
+            this._prevState = this._state;; // Store the previous state
             this._state = command.execute(this._state);
             console.log('State after execution:', this._state);
             this.stack.push(command);
@@ -104,7 +104,8 @@ class CommandStack<State extends Stringifiable> {
         if (command) {
             console.log(`Undoing command: ${command.constructor.name}`);
             console.log('State before undo:', this._state);
-            this._state = this._prevState.slice(); // Restore the previous state
+            this._state = this._prevState; // Restore the previous state
+            command.undo(this._state);     
             console.log('State after undo:', this._state);
             this.undoneStack.push(command);
         }
@@ -112,6 +113,7 @@ class CommandStack<State extends Stringifiable> {
 
     redo(): void {
         const command = this.undoneStack.pop();
+        console.log('POPPED ON REDO')
         if (command) {
             console.log(`Redoing command: ${command.constructor.name}`);
             console.log('State before redo:', this._state);
@@ -256,14 +258,16 @@ class Delete extends Command<FlatUnit> {
 }
 
 
-const cs = new CommandStack<FlatUnit>(
-    [
-        new Load([
-            new FlatUnit({ id: 'id01', chartId: 'chart01', clientId: 'client01', code: 'rt-01', name: 'Root', pid: '', tags: [UnitType['root']], type: UnitType['root'] }),
-            new FlatUnit({ id: 'id02', chartId: 'chart01', clientId: 'client01', code: 'sr-01', name: 'Sub Root', pid: 'id01', tags: [UnitType['subRoot']], type: UnitType['subRoot'] })
-        ])
-    ]
-);
+const cs = new CommandStack<FlatUnit>([]);
+
+cs.execute([
+    new Load([
+        new FlatUnit({ id: 'id01', chartId: 'chart01', clientId: 'client01', code: 'rt-01', name: 'Root', pid: '', tags: [UnitType['root']], type: UnitType['root'] }),
+        new FlatUnit({ id: 'id02', chartId: 'chart01', clientId: 'client01', code: 'sr-01', name: 'Sub Root', pid: 'id01', tags: [UnitType['subRoot']], type: UnitType['subRoot'] })
+    ])
+]);
+
+// cs.undo()
 
 cs.execute([
     new Create([
@@ -284,8 +288,8 @@ cs.execute([
     ]),
 ]);
 
-cs.undo();
-cs.redo();
+// cs.undo();
+// cs.redo();
 
 cs.execute([
     new Delete([
