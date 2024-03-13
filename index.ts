@@ -78,10 +78,10 @@ class CommandStack<State extends Stringifiable> {
     private stack: Command<State>[] = [];
     private undoneStack: Command<State>[] = [];
     private _state: State[] = [];
-    private _prevState: State[] = []; // New variable to store previous state
+    private _prevState: State[] = [];
 
     constructor(commands: Command<State>[]) {
-        this.execute(commands);
+
     }
 
     get state(): State[] {
@@ -92,10 +92,11 @@ class CommandStack<State extends Stringifiable> {
         commands.forEach(command => {
             console.log(`Executing command: ${command.constructor.name}`);
             console.log('State before execution:', this._state);
-            this._prevState = this._state;; // Store the previous state
+            this._prevState = this._state;;
             this._state = command.execute(this._state);
             console.log('State after execution:', this._state);
             this.stack.push(command);
+            this.undoneStack = [];
         });
     }
 
@@ -104,7 +105,7 @@ class CommandStack<State extends Stringifiable> {
         if (command) {
             console.log(`Undoing command: ${command.constructor.name}`);
             console.log('State before undo:', this._state);
-            this._state = this._prevState; // Restore the previous state
+            this._state = this._prevState;
             command.undo(this._state);     
             console.log('State after undo:', this._state);
             this.undoneStack.push(command);
@@ -113,7 +114,6 @@ class CommandStack<State extends Stringifiable> {
 
     redo(): void {
         const command = this.undoneStack.pop();
-        console.log('POPPED ON REDO')
         if (command) {
             console.log(`Redoing command: ${command.constructor.name}`);
             console.log('State before redo:', this._state);
@@ -188,40 +188,40 @@ class Create extends Command<FlatUnit> {
 class Update extends Command<FlatUnit> {
     private originalState: FlatUnit[] = [];
 
-    constructor(private updates: FlatUnit[]) {
+    constructor(private updatedState: FlatUnit[]) {
         super();
     }
 
     execute(state: FlatUnit[]): FlatUnit[] {
         console.log('Execute Update');
-        // Save a deep copy of the original state
         this.originalState = JSON.parse(JSON.stringify(state));
-        this.updates.forEach(update => {
+        this.updatedState.forEach(update => {
             const index = state.findIndex(unit => unit.id === update.id);
             if (index !== -1) {
-                state[index] = update;
+                this.originalState[index] = update;
             } else {
                 throw new Error(`Cannot update unit that does not exist.`);
             }
         });
-        return state;
+        return this.originalState;
     }
 
     undo(): FlatUnit[] {
         console.log('Undo Update');
         const newState = this.originalState.map(originalUnit => {
-            const updatedUnit = this.updates.find(update => update.id === originalUnit.id);
+            const updatedUnit = this.updatedState.find(update => update.id === originalUnit.id);
             return updatedUnit ? updatedUnit : originalUnit;
         });
         return newState;
     }
+
     redo(): FlatUnit[] {
         console.log('Redo Update');
         return this.execute(JSON.parse(JSON.stringify(this.originalState)));
     }
 
     toString(): string {
-        return JSON.stringify(this.updates, ['id', 'code', 'name', 'type'], 3);
+        return JSON.stringify(this.updatedState, ['id', 'code', 'name', 'type'], 3);
     }
 }
 
@@ -267,8 +267,6 @@ cs.execute([
     ])
 ]);
 
-// cs.undo()
-
 cs.execute([
     new Create([
         new FlatUnit({ id: 'id03', chartId: 'chart01', clientId: 'client01', code: 'area-01', name: 'Area 1', pid: 'id02', tags: [UnitType['area']], type: UnitType['area'] })
@@ -277,19 +275,18 @@ cs.execute([
 
 cs.execute([
     new Create([
-        new FlatUnit({ id: 'id04', chartId: 'chart01', clientId: 'client01', code: 'area-03', name: 'Area 3', pid: 'id02', tags: [UnitType['area']], type: UnitType['area'] })
+        new FlatUnit({ id: 'id04', chartId: 'chart01', clientId: 'client01', code: 'area-03', name: 'Area 2', pid: 'id02', tags: [UnitType['area']], type: UnitType['area'] })
     ])
 ]);
 
 cs.execute([
     new Update([
-        new FlatUnit({ id: 'id03', chartId: 'chart01', clientId: 'client01', code: 'area-01', name: 'Area 00', pid: 'id02', tags: [UnitType['area']], type: UnitType['area'] }),
-        new FlatUnit({ id: 'id04', chartId: 'chart01', clientId: 'client01', code: 'area-02', name: 'Area 2', pid: 'id02', tags: [UnitType['area']], type: UnitType['area'] }),
+        new FlatUnit({ id: 'id03', chartId: 'chart01', clientId: 'client01', code: 'area-01', name: 'Area 1 Updated', pid: 'id02', tags: [UnitType['area']], type: UnitType['area'] }),
+        new FlatUnit({ id: 'id04', chartId: 'chart01', clientId: 'client01', code: 'area-02', name: 'Area 2 Updated', pid: 'id02', tags: [UnitType['area']], type: UnitType['area'] }),
     ]),
 ]);
 
 // cs.undo();
-// cs.redo();
 
 cs.execute([
     new Delete([
